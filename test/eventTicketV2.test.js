@@ -63,7 +63,7 @@ contract('EventTicketV2', function(accounts) {
         describe("readEvent()", async() =>{
             it("providing the event Id should return the correct event details", async() => {
                 await instance.addEvent(event1.description, event1.website, event1.ticketsAvailable, {from: deployAccount} )
-                const eventDetails = await instance.readEvent(0)
+                const eventDetails = await instance.readEvent.call(0)
 
                 assert.equal(eventDetails['0'], event1.description, "the event descriptions should match")
                 assert.equal(eventDetails['1'], event1.website, "the website details should match")

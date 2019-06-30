@@ -32,7 +32,6 @@ contract('EventTicket', function(accounts) {
         it("sales should be open when the contract is created", async() => {
             const instance = await EventTickets.new(description, url, ticketNumber)
             const eventDetails = await instance.readEvent()
-            
             assert.equal(eventDetails.isOpen, true, "the event should be open")
         })
     })

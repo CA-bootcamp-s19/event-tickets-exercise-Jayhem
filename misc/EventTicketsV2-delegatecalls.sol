@@ -9,8 +9,8 @@ contract EventTicketsV2 {
     /*
         Define an public owner variable. Set it to the creator of the contract when it is initialized.
     */
-    address payable public owner;
-    uint   TICKET_PRICE = 100 wei;
+    address public owner;
+    uint   PRICE_TICKET = 100 wei;
 
     constructor() public {
         owner = msg.sender;
@@ -27,7 +27,7 @@ contract EventTicketsV2 {
         Choose the appropriate variable type for each field.
         The "buyers" field should keep track of addresses and how many tickets each buyer purchases.
     */
-   struct Event {string description; string website; uint totalTickets; uint sales; mapping(address => uint) buyers; bool isOpen;}
+    struct Event {string description; string website; uint totalTickets; uint sales; mapping(address => uint) buyers; bool isOpen;}
 
 
     /*
@@ -63,7 +63,7 @@ contract EventTicketsV2 {
     */
     function addEvent(string memory _description, string memory _URL, uint _nbTickets) public isOwner(){
         
-        Event memory EventToCreate = Event(_description, _URL, _nbTickets,0,true);
+        EventTickets EventToCreate = new EventTickets(_description,_URL,_nbTickets);
         events[idGenerator] = EventToCreate;
         emit LogEventAdded(_description, _URL, _nbTickets, idGenerator);
         idGenerator += 1;
@@ -81,8 +81,10 @@ contract EventTicketsV2 {
             5. isOpen
     */
         function readEvent(uint _eventId) public view returns(string memory description, string memory website, uint totalTickets, uint sales, bool isOpen) {
-        Event storage myEvent = events[_eventId];
-        return (myEvent.description,myEvent.website,myEvent.totalTickets,myEvent.sales,myEvent.isOpen);
+        EventTickets theEvent = events[_eventId];
+        (bool success, bytes memory data) = address(theEvent).staticcall(abi.encodeWithSignature("readEvent()"));
+        require(success);
+        //return data;
     }
     /*
         Define a function called buyTickets().
@@ -98,20 +100,10 @@ contract EventTicketsV2 {
             - refunds any surplus value sent
             - emits the appropriate event
     */
-    function buyTickets(uint _eventId, uint _nbTix) public payable {
-        Event storage myEvent = events[_eventId];
-        uint price_to_pay = TICKET_PRICE * _nbTix;
-        uint returned_money = msg.value - price_to_pay;
-        uint remaining_tickets = myEvent.totalTickets - myEvent.sales;
-        require (myEvent.isOpen == true,"Event no longer open");
-        require(_nbTix <= remaining_tickets,"Not enough tickets available");
-        require (returned_money >= 0,"Not enough funds provided");
-        myEvent.sales += _nbTix;
-        if ( returned_money > 0) {
-            msg.sender.transfer(returned_money);
-        }
-        myEvent.buyers[msg.sender] = _nbTix;
-        emit LogBuyTickets(msg.sender, _eventId, _nbTix);
+    function buyTickets(uint _eventId, uint _nbTix) public {
+        EventTickets theEvent = events[_eventId];
+        (bool success, bytes memory data) = address(theEvent).delegatecall(abi.encodeWithSignature("buyTickets(uint256)", _nbTix));
+        if (!success) revert();
     }
 
     /*
@@ -125,13 +117,9 @@ contract EventTicketsV2 {
             - emit the appropriate event
     */
     function getRefund(uint _eventId) public payable {
-        Event storage myEvent = events[_eventId];
-        uint nbTixForBuyer = getBuyerNumberTickets(_eventId);
-        uint refund_amount = nbTixForBuyer * TICKET_PRICE;
-        require(nbTixForBuyer != 0,"No tickets purchased");
-        myEvent.sales -= nbTixForBuyer;
-        msg.sender.transfer(refund_amount);
-        emit LogGetRefund(msg.sender, _eventId, nbTixForBuyer);
+        EventTickets theEvent = events[_eventId];
+        (bool success, bytes memory data) = address(theEvent).delegatecall(abi.encodeWithSignature("getRefund()"));
+        if (!success) revert();
     }
 
     /*
@@ -139,9 +127,11 @@ contract EventTicketsV2 {
         This function takes one parameter, an event ID
         This function returns a uint, the number of tickets that the msg.sender has purchased.
     */
-    function getBuyerNumberTickets(uint _eventId) public view returns (uint nbTickets) {
-        Event storage myEvent = events[_eventId];
-        return myEvent.buyers[msg.sender];
+    function getBuyerNumberTickets(uint _eventId) public returns (bytes memory nbTickets) {
+        EventTickets theEvent = events[_eventId];
+        (bool success, bytes memory data) = address(theEvent).delegatecall(abi.encodeWithSignature("getBuyerTicketCount(address",msg.sender));
+        if (!success) revert();
+        return data;
     }
 
     /*
@@ -153,11 +143,9 @@ contract EventTicketsV2 {
             - transfer the balance from those event sales to the contract owner
             - emit the appropriate event
     */
-    function endSale(uint _eventId) public payable isOwner() {
-        Event storage myEvent = events[_eventId];
-        myEvent.isOpen = false;
-        uint salesResults = address(this).balance;
-        owner.transfer(salesResults);
-        emit LogEndSale(owner, salesResults, _eventId);
+    function endSale(uint _eventId) public payable {
+        EventTickets theEvent = events[_eventId];
+        (bool success, bytes memory data) = address(theEvent).delegatecall(abi.encodeWithSignature("endSale()"));
+        if (!success) revert();
     }
 }
